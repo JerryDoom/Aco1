@@ -290,13 +290,14 @@ public class AntTsp {
     // printing best tour so far each time. 
     public static void main(String[] args) {
         // Load in TSP data file.
-        if (args.length < 1) {
+        /*if (args.length < 1) {
             System.err.println("Please specify a TSP data file.");
             return;
-        }
+        }*/
         AntTsp anttsp = new AntTsp();
         try {
-            anttsp.readGraph(args[0]);
+//            anttsp.readGraph(args[0]);
+            anttsp.readGraph("/home/jerry/Eclipse workspace/Aco1/tspadata1.txt");
         } catch (IOException e) {
             System.err.println("Error reading graph.");
             return;
