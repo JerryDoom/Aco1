@@ -51,19 +51,22 @@ public class AntTsp {
     // probability of pure random selection of the next town
     private double pr = 0.01;
 
-    // Reasonable number of iterations
-    // - results typically settle down by 500
-    private int maxIterations = 2000;
+    private int startTown = 0;
+
+	private int goalTown = 1;
+	// Reasonable number of iterations
+    private int maxIterations = 80000;
 
     public int n = 0; // # towns
     public int m = 0; // # ants
     private double graph[][] = null;
-    private double trails[][] = null;
+
+	private double trails[][] = null;
     private Ant ants[] = null;
     private Random rand = new Random();
     private double probs[] = null;
 
-    private int currentIndex = 0;
+	private int currentIndex = 0;
 
     public int[] bestTour;
     public double bestTourLength;
@@ -74,6 +77,23 @@ public class AntTsp {
         // Maintain visited list for towns, much faster
         // than checking if in tour so far.
         public boolean visited[] = new boolean[graph.length];
+        private boolean completed = false;
+
+        public Ant() {
+        	for(int i = 0; i< n; i++)
+        		tour[i] = -1;
+        }
+        public int getNextTown(){
+        	return tour[currentIndex + 1];        	
+        }
+        
+	    public boolean isCompleted() {
+			return completed;
+		}
+	
+		public void setCompleted(boolean completed) {
+			this.completed = completed;
+		}
 
         public void visitTown(int town) {
             tour[currentIndex + 1] = town;
@@ -85,9 +105,12 @@ public class AntTsp {
         }
 
         public double tourLength() {
-            double length = graph[tour[n - 1]][tour[0]];
+            double length = 1;
             for (int i = 0; i < n - 1; i++) {
-                length += graph[tour[i]][tour[i + 1]];
+            	if(tour[i] != -1 && tour[i + 1] != -1)
+            		length += graph[tour[i]][tour[i + 1]];
+            	else
+            		break;
             }
             return length;
         }
@@ -215,9 +238,12 @@ public class AntTsp {
         for (Ant a : ants) {
             double contribution = Q / a.tourLength();
             for (int i = 0; i < n - 1; i++) {
-                trails[a.tour[i]][a.tour[i + 1]] += contribution;
+            	if(a.tour[i] != -1 && a.tour[i + 1] != -1)
+            		trails[a.tour[i]][a.tour[i + 1]] += contribution;
+            	else
+            		break;
             }
-            trails[a.tour[n - 1]][a.tour[0]] += contribution;
+//            trails[a.tour[n - 1]][a.tour[0]] += contribution;
         }
     }
 
@@ -225,8 +251,14 @@ public class AntTsp {
     private void moveAnts() {
         // each ant follows trails...
         while (currentIndex < n - 1) {
-            for (Ant a : ants)
-                a.visitTown(selectNextTown(a));
+            for (Ant a : ants) {
+            	if(!a.isCompleted()) {
+	                a.visitTown(selectNextTown(a));
+	                if(a.getNextTown() == goalTown) {
+	                	a.setCompleted(true);
+	                }
+            	}
+            }
             currentIndex++;
         }
     }
@@ -236,7 +268,7 @@ public class AntTsp {
         currentIndex = -1;
         for (int i = 0; i < m; i++) {
             ants[i].clear(); // faster than fresh allocations.
-            ants[i].visitTown(rand.nextInt(n));
+            ants[i].visitTown(startTown);
         }
         currentIndex++;
 
@@ -283,7 +315,30 @@ public class AntTsp {
         System.out.println("Best tour:" + tourToString(bestTour));
         return bestTour.clone();
     }
+    
+    public double[][] getGraph() {
+		return graph;
+	}
 
+	public void setGraph(double[][] graph) {
+		this.graph = graph;
+	}
+
+    public int getGoalTown() {
+		return goalTown;
+	}
+
+	public void setGoalTown(int goalTown) {
+		this.goalTown = goalTown;
+	}
+
+    public int getStartTown() {
+		return startTown;
+	}
+
+	public void setStartTown(int startTown) {
+		this.startTown = startTown;
+	}
     // Load graph file given on args[0].
     // (Full adjacency matrix. Columns separated by spaces, rows by newlines.)
     // Solve the TSP repeatedly for maxIterations
@@ -297,16 +352,17 @@ public class AntTsp {
         AntTsp anttsp = new AntTsp();
         try {
 //            anttsp.readGraph(args[0]);
-            anttsp.readGraph("/home/jerry/Eclipse workspace/Aco1/tspadata1.txt");
+            anttsp.readGraph("/home/cristopherson/workspace/Aco1/bin/tspadata3.txt");
         } catch (IOException e) {
             System.err.println("Error reading graph.");
             return;
         }
 
+//        anttsp.setGoalTown(50);
         // Repeatedly solve - will keep the best tour found.
-        for (; ; ) {
+//        for (; ; ) {
             anttsp.solve();
-        }
+//        }
 
     }
 }
