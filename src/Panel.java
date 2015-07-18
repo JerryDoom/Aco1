@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.LayoutManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -19,8 +20,19 @@ public class Panel extends JFrame{
     private static final String ADDED_TEXT = " was Pressed";
     private JLabel positionLabel;
     private JButton resetButton;
-    private static int gridSize = 5;
+    private AntTsp antTsp;
+    private static int gridSize = 10;
+    private static int gridCenter =  55;
 
+    public Panel(String fileLocation){
+    	antTsp = new AntTsp();    	
+    	try {
+			antTsp.readGraph(fileLocation);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
 
     private void createAndDisplayGUI()
     {       
@@ -58,15 +70,24 @@ public class Panel extends JFrame{
         {
             for (int j = 0; j < gridSize; j++)
             {
-                JButton button = new JButton("(" + i + ", " + j + ")");
-                button.setActionCommand("(" + i + ", " + j + ")");
+            	JButton button = new JButton();
+                String nodeValue = "" + antTsp.getGraph()[gridCenter][(i * gridSize)+ j];
+            	
+            	if(nodeValue.equals("1.0E7")) {
+            		nodeValue = "pizzeria";
+            		button.setBackground(Color.GREEN);
+            	} 
+                
+            	button.setText(nodeValue);
+            	button.setActionCommand(nodeValue);
                 button.addActionListener(new ActionListener()
                 {
                     public void actionPerformed(ActionEvent ae)
                     {
-                        JButton but = (JButton) ae.getSource();
+                        JButton but = (JButton) ae.getSource();                        
                         positionLabel.setText(
-                            but.getActionCommand() + ADDED_TEXT);                           
+                            but.getActionCommand() + ADDED_TEXT);
+                        antTsp.solve();
                     }
                 });
                 buttonPanel.add(button);
@@ -90,7 +111,7 @@ public class Panel extends JFrame{
         {
             public void run()
             {
-                new Panel().createAndDisplayGUI();
+                new Panel("/home/cristopherson/workspace/Aco1/bin/tspadata3.txt").createAndDisplayGUI();
             }
         });
     }
