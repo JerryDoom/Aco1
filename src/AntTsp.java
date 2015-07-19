@@ -1,7 +1,10 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 /*
  *  === Implementation of ant swarm TSP solver. ===
@@ -49,7 +52,7 @@ public class AntTsp {
     // number of ants used = numAntFactor*numTowns
     private double numAntFactor = 0.8;
     // probability of pure random selection of the next town
-    private double pr = 0.01;
+    private double pr = 0.3;
 
     private int startTown = 0;
 
@@ -69,7 +72,10 @@ public class AntTsp {
 	private int currentIndex = 0;
 
     public int[] bestTour;
-    public double bestTourLength;
+	public double bestTourLength;
+
+    /* There are 4 supported directions, 0:LEFT, 1:UP, 2:RIGHT, 3:DOWN*/
+    private List <Integer>directions = new ArrayList<Integer>();
 
     // Ant class. Maintains tour and tabu information.
     private class Ant {
@@ -78,6 +84,7 @@ public class AntTsp {
         // than checking if in tour so far.
         public boolean visited[] = new boolean[graph.length];
         private boolean completed = false;
+        private boolean dead = false;
 
         public Ant() {
         	for(int i = 0; i< n; i++)
@@ -87,6 +94,14 @@ public class AntTsp {
         	return tour[currentIndex + 1];        	
         }
         
+	    public boolean isDead() {
+			return dead;
+		}
+	
+		public void setDead(boolean dead) {
+			this.dead = dead;
+		}
+
 	    public boolean isCompleted() {
 			return completed;
 		}
@@ -94,6 +109,43 @@ public class AntTsp {
 		public void setCompleted(boolean completed) {
 			this.completed = completed;
 		}
+
+		private int getNeighbor(int direction) {
+			int neighbor = -1;
+			switch(direction) {
+			case 0:
+			{
+				if((tour[currentIndex] % 10) != 0) {
+					neighbor = tour[currentIndex] - 1;
+				}
+				break;
+			}
+			case 1:
+			{
+				if(tour[currentIndex] >= 10) {
+					neighbor = tour[currentIndex] - 10;
+				}
+				break;
+			}
+			case 2:
+			{
+				if(((tour[currentIndex] + 1) % 10) != 0) {
+					neighbor = tour[currentIndex] + 1;
+				}
+				break;
+			}
+			case 3:
+			{
+				if(tour[currentIndex] < 90) {
+					neighbor = tour[currentIndex] + 10;
+				}
+				break;
+			}
+			default:
+				neighbor = -1;
+			}
+			return neighbor;
+	    }
 
         public void visitTown(int town) {
             tour[currentIndex + 1] = town;
@@ -115,12 +167,21 @@ public class AntTsp {
             return length;
         }
 
-        public void clear() {
-            for (int i = 0; i < n; i++)
+    	public void clear() {
+            for (int i = 0; i < n; i++) {
+//           		tour[i] = -1;
                 visited[i] = false;
+//                completed = false;
+            }
         }
     }
 
+    
+    public AntTsp() {
+    	for (int i = 0; i < 4; i++)
+    		directions.add(new Integer(i));
+    	
+    }
     // Read in graph from a file.
     // Allocates all memory.
     // Adds 1 to edge lengths to ensure no zero length edges.
@@ -159,6 +220,10 @@ public class AntTsp {
             ants[j] = new Ant();
     }
 
+    public int[] getBestTour() {
+		return bestTour;
+	}
+
     // Approximate power function, Math.pow is quite slow and we don't need accuracy.
     // See: 
     // http://martin.ankerl.com/2007/10/04/optimized-pow-approximation-for-java-and-c-c/
@@ -179,19 +244,26 @@ public class AntTsp {
         int i = ant.tour[currentIndex];
 
         double denom = 0.0;
-        for (int l = 0; l < n; l++)
-            if (!ant.visited(l))
-                denom += pow(trails[i][l], alpha)
-                        * pow(1.0 / graph[i][l], beta);
+        for (int l = 0; l < directions.size(); l++) {
+        	if(ant.getNeighbor(l) < 0)
+        		continue;
+            if (!ant.visited(ant.getNeighbor(l)))
+                denom += pow(trails[i][ant.getNeighbor(l)], alpha)
+                        * pow(1.0 / graph[i][ant.getNeighbor(l)], beta);
+        }
 
+        if(denom == 0.0)
+        	return;
 
-        for (int j = 0; j < n; j++) {
-            if (ant.visited(j)) {
-                probs[j] = 0.0;
+        for (int j = 0; j < directions.size(); j++) {
+        	if(ant.getNeighbor(j) < 0)
+        		continue;
+            if (ant.visited(ant.getNeighbor(j))) {
+                probs[ant.getNeighbor(j)] = 0.0;
             } else {
-                double numerator = pow(trails[i][j], alpha)
-                        * pow(1.0 / graph[i][j], beta);
-                probs[j] = numerator / denom;
+                double numerator = pow(trails[i][ant.getNeighbor(j)], alpha)
+                        * pow(1.0 / graph[i][ant.getNeighbor(j)], beta);
+                probs[ant.getNeighbor(j)] = numerator / denom;
             }
         }
 
@@ -202,29 +274,50 @@ public class AntTsp {
     // totally randomly (taking into account tabu list).
     private int selectNextTown(Ant ant) {
         // sometimes just randomly select
+//    	Collections.shuffle(directions);
+    	
         if (rand.nextDouble() < pr) {
-            int t = rand.nextInt(n - currentIndex); // random town
+            int t = rand.nextInt(directions.size()); // random town
             int j = -1;
-            for (int i = 0; i < n; i++) {
-                if (!ant.visited(i))
+            for (int i = 0; i < directions.size(); i++) {
+            	int selectedTown = ant.getNeighbor(directions.get(i));
+            	if(selectedTown < 0) {
+            		continue;
+            	}
+            	
+                if (!ant.visited(selectedTown))
                     j++;
                 if (j == t)
-                    return i;
+                    return ant.getNeighbor(directions.get(i));
             }
-
+            if(j < 0)
+            	return -1;
         }
         // calculate probabilities for each town (stored in probs)
         probTo(ant);
         // randomly select according to probs
         double r = rand.nextDouble();
         double tot = 0;
-        for (int i = 0; i < n; i++) {
-            tot += probs[i];
+        for (int i = 0; i < directions.size(); i++) {
+        	if(ant.getNeighbor(i) < 0)
+        		continue;
+        	
+            tot += probs[ant.getNeighbor(i)];
             if (tot >= r)
-                return i;
+                return ant.getNeighbor(i);
         }
 
-        throw new RuntimeException("Not supposed to get here.");
+        for (int i = 0; i < directions.size(); i++) {
+        	int selectedTown = ant.getNeighbor(directions.get(i));
+        	if(selectedTown < 0) {
+        		continue;
+        	}
+        	
+            if (!ant.visited(selectedTown))
+                return ant.getNeighbor(directions.get(i));
+        }
+        
+        return -1;
     }
 
     // Update trails based on ants tours
@@ -252,8 +345,30 @@ public class AntTsp {
         // each ant follows trails...
         while (currentIndex < n - 1) {
             for (Ant a : ants) {
-            	if(!a.isCompleted()) {
-	                a.visitTown(selectNextTown(a));
+            	if(!a.isCompleted() && !a.isDead()) {
+            		int selectedTown =selectNextTown(a);
+            		
+            		if(selectedTown < 0) {
+            			a.setDead(true);
+            			int validNodesCounter = 0;
+            			for(int i = 0; i < a.tour.length -1 ; i++) {
+            				if(a.tour[i] == -1 || a.tour[i + 1] == -1) {
+            					break;
+            				}
+            				validNodesCounter++;
+            			}
+
+            			for(int i = 0; i < validNodesCounter -1 ; i++) {
+            				if(a.tour[i] == -1 || a.tour[i + 1] == -1) {
+            					break;
+            				}
+            				trails[a.tour[i]][a.tour[i + 1]] = c;
+            			}
+            			a.setCompleted(true);
+            			System.out.println("Ant " + a + " is dead");
+            			continue;
+            		}
+	                a.visitTown(selectedTown);
 	                if(a.getNextTown() == goalTown) {
 	                	a.setCompleted(true);
 	                }
@@ -358,7 +473,8 @@ public class AntTsp {
             return;
         }
 
-//        anttsp.setGoalTown(50);
+        anttsp.setStartTown(55);
+        anttsp.setGoalTown(22);
         // Repeatedly solve - will keep the best tour found.
 //        for (; ; ) {
             anttsp.solve();
