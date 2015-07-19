@@ -23,11 +23,13 @@ public class Panel extends JFrame{
     private AntTsp antTsp;
     private static int gridSize = 10;
     private static int gridCenter =  55;
+    private AntActionListener antActionListener;
 
     public Panel(String fileLocation){
     	antTsp = new AntTsp();    	
     	try {
 			antTsp.readGraph(fileLocation);
+			antTsp.setStartTown(gridCenter);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -57,6 +59,7 @@ public class Panel extends JFrame{
                 positionLabel.setText(INITIAL_TEXT);
             }
         });
+        
         labelPanel.add(positionLabel);
         buttonLeftPanel.add(resetButton);
         leftPanel.add(labelPanel);
@@ -66,6 +69,7 @@ public class Panel extends JFrame{
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new GridLayout(gridSize, gridSize, 10, 10));
+
         for (int i = 0; i < gridSize; i++)
         {
             for (int j = 0; j < gridSize; j++)
@@ -76,21 +80,16 @@ public class Panel extends JFrame{
             	if(nodeValue.equals("1.0E7")) {
             		nodeValue = "pizzeria";
             		button.setBackground(Color.GREEN);
-            	} 
+            	} else {
+            		nodeValue = "" + (( i * gridSize) + j );
+            	}
                 
             	button.setText(nodeValue);
             	button.setActionCommand(nodeValue);
-                button.addActionListener(new ActionListener()
-                {
-                    public void actionPerformed(ActionEvent ae)
-                    {
-                        JButton but = (JButton) ae.getSource();                        
-                        positionLabel.setText(
-                            but.getActionCommand() + ADDED_TEXT);
-                        antTsp.solve();
-                    }
-                });
+                button.addActionListener(new AntActionListener(positionLabel, antTsp, buttonLeftPanel));
                 buttonPanel.add(button);
+                
+                
             }
         }
         contentPane.add(buttonPanel);
